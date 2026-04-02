@@ -11,7 +11,56 @@ Production-ready Python bot that extracts verified doctor leads (email/phone) fr
 ✅ Windows/Cloud ready (Render)  
 ✅ Rate limiting, retries, logging  
 
-## Quick Start (Windows)
+## 🚀 QUICK START - RENDER-READY LEAD BOT
+
+### 1. **Test Locally**
+```bash
+# Install deps
+pip install -r requirements_render.txt
+
+# Set .env (copy sample below)
+cp .env.example .env
+# Edit .env: SHEET_ID, GOOGLE_CREDENTIALS_JSON (paste full JSON from Google Console)
+
+# Test
+python lead_scraper_bot.py --diagnostics
+python lead_scraper_bot.py --test
+```
+
+### 2. **Run 24/7 Scheduler** 
+```bash
+python lead_scraper_bot.py --schedule
+```
+
+### 3. **Deploy Render (FREE)**
+```
+1. render.yaml exists - ready!
+2. Git push to Render
+3. Dashboard → Environment: 
+   - SHEET_ID=your_sheet_id
+   - GOOGLE_CREDENTIALS_JSON={"type": "service_account"...} (full JSON string)
+4. Auto-runs daily 9AM → uploads new leads!
+```
+
+### .env.example
+```
+GOOGLE_SHEET_ID=1Ue3UXj-HYfJMSipy_oJ3wsUEKX9FuJsvZw50b2GrV1o
+GOOGLE_CREDENTIALS_JSON={"type": "service_account", "project_id": "your-project"...}
+```
+
+**Features Verified:**
+- ✅ Syntax fixed (docstrings, imports)
+- ✅ Linux/Render compatible 
+- ✅ Env vars (no hardcode)
+- ✅ Dedupe (email/phone), phone clean (+91), append
+- ✅ Scheduler (APScheduler Cron 9AM)
+- ✅ Scrape→Excel→Sheet pipeline
+- ✅ Full diagnostics + logs/reports
+
+---
+
+## Quick Start
+
 
 ```bash
 # 1. Install dependencies

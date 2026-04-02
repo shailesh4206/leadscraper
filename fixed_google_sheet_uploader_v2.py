@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
-\"\"\" 
+""" 
 Render-Ready Lead Scraper Uploader v2 - Full 24/7 Bot
 Features: Diagnostics, Daily Scheduler 9AM, Force Upload, Phone Cleaning, Dedupe
 Usage: python fixed_google_sheet_uploader_v2.py [--schedule | --force-upload | --diagnostics]
-\"\"\"
+"""
 
 import argparse
 import sys

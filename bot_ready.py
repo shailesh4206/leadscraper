@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
-\"\"\" 
+""" 
 Vectorax Healthcare CRM Lead Bot - Render 24/7 Ready
 Full cycle: Scrape → Clean Phones → Dedupe Upload → Report
 Run: python bot_ready.py [--test | --force-upload | --schedule]
-\"\"\"
+"""
 
 import argparse
 import sys

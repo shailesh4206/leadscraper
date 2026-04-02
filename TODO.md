@@ -1,12 +1,10 @@
-# Render Deployment TODO - Lead Scraper Bot
-Status: ✅ Plan Approved - Implementing...
+# Lead Scraper Bot Deploy TODO
 
-## Implementation Steps (Breakdown):
-- [x] 1. Create TODO.md (this file)
-- [x] 2. Edit fixed_google_sheet_uploader_v2.py (env vars SHEET_ID/CREDENTIALS updated)
-- [x] 3. Edit render.yaml (SHEET_ID, CREDENTIALS, startCommand)
-- [x] 4. Test: python fixed_google_sheet_uploader_v2.py --diagnostics
-- [ ] 5. Git commit/push: "Render deployment ready..."
-- [ ] 6. Render deploy + verify logs
-
-**Progress: Starting edits...**
+## Plan Steps
+- [ ] Step 1: Create TODO.md ✅
+- [x] Step 2: Fix docstrings in fixed_google_sheet_uploader_v2.py
+- [x] Step 3: Fix docstrings in bot_ready.py  
+- [x] Step 4: Create .env file
+- [x] Step 5: Install dependencies (some wheels failed - MSVC++ needed for aiohttp/lxml; core deps ok)
+- [x] Step 6: Git add/commit/push
+- [ ] Step 7: Render deploy instructions
