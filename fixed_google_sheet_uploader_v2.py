@@ -42,6 +42,8 @@ try:
 except ImportError:
     GSHEET_AVAILABLE = False
 
+from tenacity import retry, stop_after_attempt
+
 # Env vars
 SHEET_ID = os.getenv('SHEET_ID')
 if not SHEET_ID:
@@ -49,7 +51,7 @@ if not SHEET_ID:
     sys.exit(1)
 
 def get_credentials_file():
-    \"\"\"Render CREDENTIALS env -> data/credentials.json\"\"\" 
+    """Render CREDENTIALS env -> data/credentials.json"""
     env_creds = os.getenv('CREDENTIALS')
     if env_creds:
         Path('data').mkdir(exist_ok=True)
@@ -80,7 +82,7 @@ def setup_logging():
     return logging.getLogger('Uploader')
 
 def clean_phones(df):
-    \"\"\"Clean phone numbers, add country code (+91 India default)\"\"\" 
+    """Clean phone numbers, add country code (+91 India default)"""
     COUNTRY_RULES = {
         'India': {'lengths': [10], 'code': '+91'},
         'USA': {'lengths': [10], 'code': '+1'},
@@ -103,7 +105,7 @@ def clean_phones(df):
 
 @retry(stop=stop_after_attempt(3))
 def upload_dedupe(df, logger):
-    \"\"\"Dedupe upload - append new rows only\"\"\" 
+    """Dedupe upload - append new rows only"""
     creds_file = get_credentials_file()
     scope = ['https://spreadsheets.google.com/feeds', 'https://www.googleapis.com/auth/drive']
     creds = Credentials.from_service_account_file(creds_file, scopes=scope)
@@ -132,7 +134,7 @@ def upload_dedupe(df, logger):
     return 0, duplicates_skipped
 
 def upload_force(df, logger):
-    \"\"\"Force upload all rows - ignore dupes\"\"\" 
+    """Force upload all rows - ignore dupes"""
     creds_file = get_credentials_file()
     scope = ['https://spreadsheets.google.com/feeds', 'https://www.googleapis.com/auth/drive']
     creds = Credentials.from_service_account_file(creds_file, scopes=scope)
@@ -143,7 +145,7 @@ def upload_force(df, logger):
     return len(df), 0
 
 def test_credentials():
-    \"\"\"Test 1: Credentials\"\"\" 
+    """Test 1: Credentials"""
     try:
         get_credentials_file()
         return True, 'Loaded'
@@ -151,7 +153,7 @@ def test_credentials():
         return False, 'Failed'
 
 def test_sheet():
-    \"\"\"Test 2: Sheet connect\"\"\" 
+    """Test 2: Sheet connect"""
     logger = logging.getLogger('Test')
     try:
         creds_file = get_credentials_file()
@@ -164,7 +166,7 @@ def test_sheet():
         return False, str(e)
 
 def test_excel():
-    \"\"\"Test 3: Excel R/W\"\"\" 
+    """Test 3: Excel R/W"""
     excel_path = Path('data/doctor_leads_master.xlsx')
     try:
         if not excel_path.exists():
@@ -175,7 +177,7 @@ def test_excel():
         return False, 'Failed'
 
 def test_dupes():
-    \"\"\"Test 4: Dup detection\"\"\" 
+    """Test 4: Dup detection"""
     excel_path = Path('data/doctor_leads_master.xlsx')
     if not excel_path.exists():
         return True, 'Skipped (no Excel)'
@@ -188,7 +190,7 @@ def test_dupes():
         return False, 'Failed'
 
 def test_phones():
-    \"\"\"Test 5: Phone cleaning\"\"\" 
+    """Test 5: Phone cleaning"""
     excel_path = Path('data/doctor_leads_master.xlsx')
     if not excel_path.exists():
         return True, 'Skipped'
@@ -201,15 +203,15 @@ def test_phones():
         return False, 'Failed'
 
 def test_logs():
-    \"\"\"Test 6: Logs\"\"\" 
+    """Test 6: Logs"""
     return True, 'OK'
 
 def test_scheduler():
-    \"\"\"Test 7: Scheduler\"\"\" 
+    """Test 7: Scheduler"""
     return SCHEDULER_AVAILABLE, 'Available' if SCHEDULER_AVAILABLE else 'pip install apscheduler'
 
 def run_diagnostics(logger):
-    \"\"\"Full diagnostics report\"\"\" 
+    """Full diagnostics report"""
     tests = [
         ('Credentials', test_credentials()),
         ('Sheet', test_sheet()),
@@ -232,7 +234,7 @@ def run_diagnostics(logger):
     return passed == 7
 
 def bot_cycle(logger):
-    \"\"\"Daily cycle: clean → upload → report\"\"\" 
+    """Daily cycle: clean → upload → report"""
     try:
         run_diagnostics(logger)
         
@@ -253,7 +255,7 @@ def bot_cycle(logger):
         logger.error(f'Cycle error: {e}')
 
 def scheduler_main(logger):
-    \"\"\"24/7 scheduler - daily 9AM + error restart\"\"\" 
+    """24/7 scheduler - daily 9AM + error restart"""
     scheduler = BackgroundScheduler()
     scheduler.add_error_handler(lambda job, exc: logger.error(f'Scheduler error: {exc}'))
     
