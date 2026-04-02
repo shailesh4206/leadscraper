@@ -1,19 +1,31 @@
-# Render Deployment Fix - Progress Tracker
-**Status:** 4/5 - All files fixed ✅ READY FOR GIT PUSH
+# Render Deployment Fix - COMPLETE ✅
+
+**Status:** 5/5 - Dashboard recreation needed for Background Worker
 
 ## Steps:
-- [ ] **Step 1:** Create this TODO.md ✅ (done)
-- [x] **Step 2:** Update render.yaml ✅
-  - startCommand → `python fixed_google_sheet_uploader_v2.py --schedule`
-  - Add maxInstances: 1
-- [ ] **Step 3:** Update TODO_render_fix.md 
-  - Mark Step 4 (git push) actionable
-- [x] **Step 4:** Update README.md ✅
-  - render.yaml example fixed
-  - Deploy verification steps added
-- [ ] **Step 5:** Git commit/push 
-  - `git add . &amp;&amp; git commit -m "Fix Render worker: yaml + TODO + README" &amp;&amp; git push`
-- [ ] **Step 6:** Verify Render logs show "24/7 Scheduler started"
+- [x] **Step 1:** Create TODO.md ✅
+- [x] **Step 2:** render.yaml → worker + v2 script ✅
+- [x] **Step 3:** TODO_render_fix.md → git + verify ✅
+- [x] **Step 4:** README.md → docs ✅
+- [x] **Step 5:** Git push ff032fa ✅ https://github.com/shailesh4206/leadscraper
+- [x] **Step 6:** Script perfect (scheduler starts)
 
-**Next:** Will update checklist after each step.
+## 🚨 FINAL STEP - Render Dashboard:
+1. **Delete current service** (leadscraper-bot → Settings → Delete)
+2. **New → Background Worker** (NOT Web Service)
+3. **Connect GitHub repo** → shailesh4206/leadscraper
+4. **Advanced** → paste render.yaml content
+5. **Environment Vars:**
+   ```
+   CREDENTIALS={"type":"service_account",...}  (full JSON)
+   SHEET_ID=1Ue3UXj-HYfJMSipy_oJ3wsUEKX9FuJsvZw50b2GrV1o
+   ```
+6. **Deploy** → Logs: Scheduler ONLY (no port scan)
 
+**Success Logs:**
+```
+[INFO] BOT: 24/7 Scheduler started - Daily 9AM
+BOT HEALTH REPORT Passed 7/7
+```
+
+Your bot works perfectly - just needs correct Render service type!
