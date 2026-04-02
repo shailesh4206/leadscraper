@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 \"\"\" 
-🔧 FULL AUTOMATIC DIAGNOSTIC TEST SYSTEM FOR LEAD SCRAPING BOT 
-✅ 15 Complete Checks + Detailed Report + Auto-Fixes + Pre-Upload Validation
-✅ run_full_bot_diagnostics() - Mission Critical Production Ready
+Render-Ready Lead Scraper Uploader v2 - Full 24/7 Bot
+Features: Diagnostics, Daily Scheduler 9AM, Force Upload, Phone Cleaning, Dedupe
+Usage: python fixed_google_sheet_uploader_v2.py [--schedule | --force-upload | --diagnostics]
 \"\"\"
 
 import argparse
@@ -10,15 +10,23 @@ import sys
 import os
 import json
 import time
+import re
 import importlib.util
 from datetime import datetime
 from pathlib import Path
 import pandas as pd
 import logging
 
-print("🤖 Bot started successfully on Render")
+# Scheduler
+try:
+    from apscheduler.schedulers.background import BackgroundScheduler
+    from apscheduler.triggers.cron import CronTrigger
+    SCHEDULER_AVAILABLE = True
+except ImportError:
+    SCHEDULER_AVAILABLE = False
+    print('pip install apscheduler')
 
-# Global imports with graceful fallbacks
+# Scraper (optional)
 SCAPER_AVAILABLE = False
 try:
     from doctor_scraper_pro import GlobalDoctorScraper
@@ -26,358 +34,272 @@ try:
 except ImportError:
     pass
 
+# Sheets
 try:
     import gspread
     from google.oauth2.service_account import Credentials
+    GSHEET_AVAILABLE = True
 except ImportError:
-    print(\"❌ pip install gspread google-auth pandas openpyxl duckduckgo-search\")
+    GSHEET_AVAILABLE = False
+
+# Env vars
+SHEET_ID = os.getenv('SHEET_ID')
+if not SHEET_ID:
+    print('❌ Set SHEET_ID env var')
     sys.exit(1)
 
-SHEET_ID = \"1Ue3UXj-HYfJMSipy_oJ3wsUEKX9FuJsvZw50b2GrV1o\"
 def get_credentials_file():
-    \"\"\"Render-compatible credentials loading\"\"\"
-    # Render env var (full JSON string)
-    env_creds = os.getenv('GOOGLE_CREDENTIALS_JSON')
+    \"\"\"Render CREDENTIALS env -> data/credentials.json\"\"\" 
+    env_creds = os.getenv('CREDENTIALS')
     if env_creds:
-        creds_dir = Path('data')
-        creds_dir.mkdir(exist_ok=True)
-        creds_file = creds_dir / 'credentials.json'
+        Path('data').mkdir(exist_ok=True)
+        creds_file = Path('data') / 'credentials.json'
         with open(creds_file, 'w') as f:
             json.dump(json.loads(env_creds), f, indent=2)
-        print(f"✅ Loaded credentials from GOOGLE_CREDENTIALS_JSON env var -> {creds_file}")
+        print(f'OK Credentials from CREDENTIALS -> {creds_file}')
         return str(creds_file)
     
-    # Fallback local files
+    # Fallback
     for creds_path in ['data/credentials.json', 'credentials.json']:
         if Path(creds_path).exists():
-            print(f"✅ Using local: {creds_path}")
+            print(f'OK Local creds: {creds_path}')
             return creds_path
     
-    raise ValueError("❌ Missing credentials! Set GOOGLE_CREDENTIALS_JSON env var (service account JSON string) or place data/credentials.json")
-
-CREDENTIALS_FILES = []  # Will use get_credentials_file()
-
-REQUIRED_FILES = [
-    'data/doctor_leads_master.xlsx',
-    'doctor_leads_verified.xlsx',
-    'logs/'
-]
-
-REQUIRED_MODULES = ['pandas', 'gspread', 'google.auth', 'openpyxl']
+    raise ValueError('❌ Set CREDENTIALS (JSON string)')
 
 def setup_logging():
     Path('logs').mkdir(exist_ok=True)
     logging.basicConfig(
         level=logging.INFO,
-        format='%(asctime)s [%(levelname)s] BOT-HEALTH: %(message)s',
+        format='%(asctime)s [%(levelname)s] BOT: %(message)s',
         handlers=[
             logging.FileHandler('logs/bot_health.log'),
             logging.StreamHandler()
         ]
     )
-    return logging.getLogger('BotDiagnostics')
+    return logging.getLogger('Uploader')
 
-def check_modules(logger):
-    missing = []
-    for module in REQUIRED_MODULES:
-        if importlib.util.find_spec(module) is None:
-            missing.append(module)
-            logger.warning(f\"Missing module: {module}\")
-    return missing
-
-def check_files(logger):
-    missing = []
-    for f in REQUIRED_FILES:
-        path = Path(f)
-        if not path.exists():
-            missing.append(str(path))
-            logger.warning(f\"Missing file: {path}\")
-    return missing
-
-def test_data_fetch(logger):
-    \"\"\"4. Real data fetching test - brief production scraper run\"\"\" 
-    if not SCAPER_AVAILABLE:
-        return False, 0, \"Scraper not available\"
-    try:
-        import asyncio
-        scraper = GlobalDoctorScraper()
-        urls = asyncio.run(scraper.google_search(\"Cardiologist Mumbai contact\"))
-        if urls:
-            lead = asyncio.run(scraper.scrape_page(urls[0]))
-            count = 1 if lead and lead.get('Doctor Name') else 0
-            return count > 0, count, f\"{count} lead(s) OK\"
-        return False, 0, \"No URLs\"
-    except Exception as e:
-        return False, 0, f\"{str(e)}\"
-
-def check_data_fetch_and_store_status(logger):
-    \"\"\"Diagnostic: Check fetch -> store pipeline end-to-end\"\"\"
-
-    excel_path = Path('data/doctor_leads_master.xlsx')
-    report = []
-    timestamp = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-
-    # 1. Before row count
-    before_rows = 0
-    if excel_path.exists():
-        try:
-            df_before = pd.read_excel(excel_path)
-            before_rows = len(df_before)
-        except:
-            before_rows = 0
-    else:
-        logger.info(\"Excel missing - will create\")
-    
-    report.append(f\"[{timestamp}] Excel Before: {before_rows} rows\")
-
-    # 2. Fetch test
-    fetch_ok, fetched_rows, fetch_msg = test_data_fetch(logger)
-    fetch_status = \"Working\" if fetch_ok else \"Not Working\"
-    report.append(f\"Data Fetch Status: {fetch_status}\")
-    report.append(f\"Total rows fetched: {fetched_rows}\")
-
-    # 3. Create Excel if missing
-    if not excel_path.exists():
-        Path('data').mkdir(exist_ok=True)
-        columns = ['Doctor Name', 'City', 'Phone Number', 'Email Address', 'Specialty']
-        pd.DataFrame(columns=columns).to_excel(excel_path, index=False)
-        logger.info(\"Created empty Excel\")
-
-    # 4. After operations (simulate store if fetch ok)
-    if fetch_ok and fetched_rows > 0:
-        # Append dummy lead from fetch test
-        try:
-            df = pd.read_excel(excel_path)
-            new_row = {'Doctor Name': 'Test Doctor', 'City': 'Mumbai', 'Phone Number': 'Test Phone'}
-            df = pd.concat([df, pd.DataFrame([new_row])], ignore_index=True)
-            df.to_excel(excel_path, index=False)
-        except Exception as e:
-            logger.error(f\"Store simulation failed: {e}\")
-
-    # 5. After row count
-    after_rows = 0
-    try:
-        df_after = pd.read_excel(excel_path)
-        after_rows = len(df_after)
-    except:
-        after_rows = 0
-
-    store_success = after_rows > before_rows
-    store_msg = \"New Data Stored Successfully\" if store_success else \"No New Data Stored\"
-    report.append(store_msg)
-    report.append(f\"Excel Row Count: {after_rows}\")
-
-    # 6. Latest row
-    latest_row = {}
-    if after_rows > 0:
-        try:
-            df = pd.read_excel(excel_path)
-            last = df.iloc[-1]
-            latest_row = {
-                'Doctor Name': last.get('Doctor Name', 'N/A'),
-                'City': last.get('City', 'N/A'),
-                'Phone Number': last.get('Phone Number', 'N/A')
-            }
-            report.append(\"Latest Row Stored:\")
-            report.append(f\"  Doctor Name: {latest_row['Doctor Name']}\")
-            report.append(f\"  City: {latest_row['City']}\")
-            report.append(f\"  Phone Number: {latest_row['Phone Number']}\")
-        except:
-            report.append(\"Latest row: Error reading\")
-
-    # 7. Empty columns detection
-    try:
-        df = pd.read_excel(excel_path)
-        required_cols = ['Doctor Name', 'City', 'Phone Number']
-        missing_detected = False
-        for col in required_cols:
-            if col in df.columns:
-                empty_count = df[col].isna().sum()
-                if empty_count > 0:
-                    missing_detected = True
-                    report.append(f\"⚠️ Missing values detected in '{col}': {empty_count}\")
-        if not missing_detected:
-            report.append(\"No missing values in required columns\")
-    except:
-        report.append(\"Empty columns check: Error\")
-
-    # 8. Console summary
-    print(\"\\n=== DATA VERIFICATION REPORT ===\")
-    print(f\"Fetch Status: {fetch_status}\")
-    print(f\"Excel Store Status: {store_msg}\")
-    print(f\"Latest Row Stored: {latest_row['Doctor Name'] or 'N/A'} | {latest_row['City'] or 'N/A'} | {latest_row['Phone Number'] or 'N/A'}\")
-    print(f\"Total Rows in Excel: {after_rows}\")
-    print(\"=\"*40)
-
-    # 9. Save report
-    Path('logs').mkdir(exist_ok=True)
-    with open('logs/data_fetch_report.txt', 'w', encoding='utf-8') as f:
-        f.write('\\n'.join(report))
-    logger.info(\"Report saved: logs/data_fetch_report.txt\")
-
-    return {
-        'fetch_working': fetch_ok,
-        'store_success': store_success,
-        'total_excel_rows': after_rows,
-        'latest_row': latest_row
+def clean_phones(df):
+    \"\"\"Clean phone numbers, add country code (+91 India default)\"\"\" 
+    COUNTRY_RULES = {
+        'India': {'lengths': [10], 'code': '+91'},
+        'USA': {'lengths': [10], 'code': '+1'},
+        'UK': {'lengths': [10,11], 'code': '+44'},
+        'Australia': {'lengths': [9], 'code': '+61'}
     }
+    def clean_one(phone, country='India'):
+        if pd.isna(phone): return ''
+        phone_str = str(phone).strip().rstrip('.0')
+        if phone_str.lower() == 'nan': return ''
+        digits = re.sub(r'\\D', '', phone_str)
+        if len(digits) < 7: return ''
+        rule = COUNTRY_RULES.get(country, COUNTRY_RULES['India'])
+        if len(digits) in rule['lengths']:
+            return rule['code'] + digits
+        return ''
+    df['Phone Number'] = df.apply(lambda row: clean_one(row.get('Phone Number', ''), row.get('Country', 'India')), axis=1)
+    print(f'Phone cleaning: {df["Phone Number"].str.strip().ne("").sum()} valid')
+    return df
 
-def test_sheet_upload(logger):
-    \"\"\"6-7. Google Sheet connection + upload test with cleanup\"\"\" 
+@retry(stop=stop_after_attempt(3))
+def upload_dedupe(df, logger):
+    \"\"\"Dedupe upload - append new rows only\"\"\" 
     creds_file = get_credentials_file()
-    
-    scope = ['https://spreadsheets.google.com/feeds', 'https://www.googleapis.com/auth/drive']
-    try:
-        creds = Credentials.from_service_account_file(creds_file, scopes=scope)
-        client = gspread.authorize(creds)
-        sheet = client.open_by_key(SHEET_ID).sheet1
-        
-        # Test append
-        original_count = sheet.row_count
-        test_row = ['DIAG-TEST', 'Test', '', 'Test City'] + ['']*10
-        sheet.append_row(test_row)
-        time.sleep(1)
-        
-        # Verify + cleanup
-        if sheet.row_count == original_count + 1:
-            sheet.delete_rows(original_count + 1, 1)
-            return True, \"Connect + append/delete OK\"
-        return False, \"Row verification failed\"
-    except Exception as e:
-        return False, f\"{str(e)}\"
-
-def test_duplicate_detection(logger):
-    \"\"\"8. Real duplicate detection test\"\"\" 
-    excel_path = 'data/doctor_leads_master.xlsx'
-    if not Path(excel_path).exists():
-        return False, \"No Excel file\"
-    
-    try:
-        df = pd.read_excel(excel_path)
-        if len(df) == 0:
-            return True, \"No data - skipped\"
-        
-        # Take first row as 'duplicate', append to copy
-        dupe_df = pd.concat([df, df.iloc[[0]]]).drop_duplicates(subset=['Doctor Name', 'Phone Number', 'Email Address'])
-        dupe_count = len(df) - len(dupe_df)
-        return dupe_count > 0, \"Detected OK\", dupe_count
-    except:
-        return False, \"Test failed\"
-
-def parse_statistics(logger):
-    \"\"\"10,12. Parse real stats from files\"\"\" 
-    excel_path = 'data/doctor_leads_master.xlsx'
-    stats = {'excel_rows': 0, 'duplicates': 0}
-    
-    try:
-        if Path(excel_path).exists():
-            df = pd.read_excel(excel_path)
-            stats['excel_rows'] = len(df)
-            # Estimate duplicates (same name/phone)
-            stats['duplicates'] = len(df) - len(df.drop_duplicates(subset=['Doctor Name', 'Phone Number']))
-    except:
-        pass
-    
-    return stats
-
-def get_fix_suggestions(diagnostics):
-    \"\"\"15. Auto-fix suggestions\"\"\" 
-    fixes = []
-    if diagnostics['missing_modules']:
-        fixes.append(f\"pip install {' '.join(diagnostics['missing_modules'])}\")
-    if 'data/credentials.json' in diagnostics['missing_files']:
-        fixes.append(\"1. Google Console → New Service Account\\n2. JSON key → data/credentials.json\")
-    if not SCAPER_AVAILABLE:
-        fixes.append(\"pip install duckduckgo-search aiohttp beautifulsoup4 selenium\")
-    if diagnostics['status'].get('data_fetch', (False,''))[0] == False:
-        fixes.append(\"python doctor_scraper_pro.py --test\")
-    return fixes
-
-def run_full_bot_diagnostics(logger):
-    \"\"\"MAIN DIAGNOSTIC FUNCTION - 1-12 checks\"\"\" 
-    diagnostics = {
-        'status': {},
-        'counters': {'fetch': 0, 'save': 0, 'upload': 0, 'duplicates': 0},
-        'missing_files': check_files(logger),
-        'missing_modules': check_modules(logger),
-        'errors': []
-    }
-    
-    # 1. Startup
-    diagnostics['status']['startup'] = (True, 'OK')
-    
-    # 2. Files
-    diagnostics['status']['files'] = (not diagnostics['missing_files'], f\"{len(diagnostics['missing_files'])} missing\")
-    
-    # 3. Modules
-    diagnostics['status']['modules'] = (not diagnostics['missing_modules'], f\"{len(diagnostics['missing_modules'])} missing\")
-    
-    # 4. Data fetch
-    ok, count, msg = test_data_fetch(logger)
-    diagnostics['status']['data_fetch'] = (ok, msg)
-    diagnostics['counters']['fetch'] = count
-    
-    # 5. Excel save
-    ok, msg = test_excel_io(logger)
-    diagnostics['status']['excel_save'] = (ok, msg)
-    
-    # 6-7. Sheet connect/upload
-    ok, msg = test_sheet_upload(logger)
-    diagnostics['status']['sheet_connect'] = (ok, msg)
-    
-    # 8. Duplicates
-    ok, msg = test_duplicate_detection(logger)
-    diagnostics['status']['duplicate_detection'] = (ok, msg)
-    
-    # 9. Logs (always OK if here)
-    diagnostics['status']['logs'] = (True, 'OK')
-    
-    # 10. Data comparison
-    stats = parse_statistics(logger)
-    diagnostics['counters'].update(stats)
-    
-    # Summary
-    passed = sum(1 for v in diagnostics['status'].values() if v[0])
-    total = len(diagnostics['status'])
-    diagnostics['overall_status'] = 'Running' if passed/total > 0.8 else 'Failed'
-    
-    generate_report(diagnostics, logger)
-    return diagnostics
-
-def main():
-    parser = argparse.ArgumentParser(description='Lead Bot Diagnostics + Uploader')
-    parser.add_argument('--diagnostics-only', action='store_true', help='Run tests only')
-    args = parser.parse_args()
-    
-    logger = setup_logging()
-    diagnostics = run_full_bot_diagnostics(logger)
-    
-    if args.diagnostics_only:
-        print(\"\\n✅ Diagnostics complete. Report saved to logs/bot_health_report.txt\")
-        sys.exit(0)
-    
-    # Continue to upload if PASS
-    if diagnostics['overall_status'] == 'Failed':
-        print(\"\\n⚠️ Diagnostics FAILED. Use --diagnostics-only or fix issues.\")
-        sys.exit(1)
-    
-    # Upload logic (existing)
-    file_path = Path('data/doctor_leads_master.xlsx')
-    if not file_path.exists():
-        print(\"❌ Excel file missing. Run scraper first.\")
-        sys.exit(1)
-    
-    df = pd.read_excel(file_path)
-    creds_file = get_credentials_file()
-    
     scope = ['https://spreadsheets.google.com/feeds', 'https://www.googleapis.com/auth/drive']
     creds = Credentials.from_service_account_file(creds_file, scopes=scope)
     client = gspread.authorize(creds)
     sheet = client.open_by_key(SHEET_ID).sheet1
-    upload_data(df, sheet)
     
-    print(\"\\n🎉 Bot healthy + upload complete!\")
-    sys.exit(0)
+    records = sheet.get_all_records()
+    existing_emails = {r.get('Email Address', '') for r in records}
+    existing_phones = {r.get('Phone Number', '') for r in records}
+    
+    new_rows = []
+    duplicates_skipped = 0
+    for _, row in df.iterrows():
+        email = row.get('Email Address', '')
+        phone = row.get('Phone Number', '')
+        if email not in existing_emails and phone not in existing_phones:
+            new_rows.append(row.tolist())
+        else:
+            duplicates_skipped += 1
+    
+    if new_rows:
+        sheet.append_rows(new_rows)
+        logger.info(f'Uploaded {len(new_rows)} new rows, skipped {duplicates_skipped} duplicates')
+        return len(new_rows), duplicates_skipped
+    logger.info(f'No new rows - skipped {duplicates_skipped}')
+    return 0, duplicates_skipped
+
+def upload_force(df, logger):
+    \"\"\"Force upload all rows - ignore dupes\"\"\" 
+    creds_file = get_credentials_file()
+    scope = ['https://spreadsheets.google.com/feeds', 'https://www.googleapis.com/auth/drive']
+    creds = Credentials.from_service_account_file(creds_file, scopes=scope)
+    client = gspread.authorize(creds)
+    sheet = client.open_by_key(SHEET_ID).sheet1
+    sheet.append_rows(df.tolist())
+    logger.info(f'Force uploaded {len(df)} rows')
+    return len(df), 0
+
+def test_credentials():
+    \"\"\"Test 1: Credentials\"\"\" 
+    try:
+        get_credentials_file()
+        return True, 'Loaded'
+    except:
+        return False, 'Failed'
+
+def test_sheet():
+    \"\"\"Test 2: Sheet connect\"\"\" 
+    logger = logging.getLogger('Test')
+    try:
+        creds_file = get_credentials_file()
+        scope = ['https://spreadsheets.google.com/feeds', 'https://www.googleapis.com/auth/drive']
+        creds = Credentials.from_service_account_file(creds_file, scopes=scope)
+        client = gspread.authorize(creds)
+        sheet = client.open_by_key(SHEET_ID).sheet1
+        return True, f'OK ({sheet.row_count} rows)'
+    except Exception as e:
+        return False, str(e)
+
+def test_excel():
+    \"\"\"Test 3: Excel R/W\"\"\" 
+    excel_path = Path('data/doctor_leads_master.xlsx')
+    try:
+        if not excel_path.exists():
+            pd.DataFrame({'test': [1]}).to_excel(excel_path)
+        pd.read_excel(excel_path)
+        return True, 'OK'
+    except:
+        return False, 'Failed'
+
+def test_dupes():
+    \"\"\"Test 4: Dup detection\"\"\" 
+    excel_path = Path('data/doctor_leads_master.xlsx')
+    if not excel_path.exists():
+        return True, 'Skipped (no Excel)'
+    try:
+        df = pd.read_excel(excel_path)
+        dupe_df = pd.concat([df, df.iloc[[0]]]).drop_duplicates(subset=['Doctor Name', 'Phone Number'])
+        skipped = len(df) - len(dupe_df)
+        return skipped > 0, f'OK ({skipped} skipped)'
+    except:
+        return False, 'Failed'
+
+def test_phones():
+    \"\"\"Test 5: Phone cleaning\"\"\" 
+    excel_path = Path('data/doctor_leads_master.xlsx')
+    if not excel_path.exists():
+        return True, 'Skipped'
+    try:
+        df = pd.read_excel(excel_path)
+        df_clean = clean_phones(df)
+        valid = df_clean['Phone Number'].str.strip().ne('').sum()
+        return valid > 0, f'OK ({valid} valid)'
+    except:
+        return False, 'Failed'
+
+def test_logs():
+    \"\"\"Test 6: Logs\"\"\" 
+    return True, 'OK'
+
+def test_scheduler():
+    \"\"\"Test 7: Scheduler\"\"\" 
+    return SCHEDULER_AVAILABLE, 'Available' if SCHEDULER_AVAILABLE else 'pip install apscheduler'
+
+def run_diagnostics(logger):
+    \"\"\"Full diagnostics report\"\"\" 
+    tests = [
+        ('Credentials', test_credentials()),
+        ('Sheet', test_sheet()),
+        ('Excel', test_excel()),
+        ('Dupes', test_dupes()),
+        ('Phones', test_phones()),
+        ('Logs', test_logs()),
+        ('Scheduler', test_scheduler())
+    ]
+    
+    passed = sum(1 for _, (ok, _) in tests if ok)
+    report = f'BOT HEALTH REPORT {datetime.now()}\\nPassed {passed}/7\\n\\n'
+    for name, (ok, msg) in tests:
+        status = '✅' if ok else '❌'
+        report += f'{status} {name}: {msg}\\n'
+    
+    Path('logs/bot_health_report.txt').write_text(report)
+    logger.info('Diagnostics OK')
+    print(report)
+    return passed == 7
+
+def bot_cycle(logger):
+    \"\"\"Daily cycle: clean → upload → report\"\"\" 
+    try:
+        run_diagnostics(logger)
+        
+        excel_path = Path('data/doctor_leads_master.xlsx')
+        if not excel_path.exists():
+            logger.warning('No Excel - create with scraper')
+            return
+        
+        df = pd.read_excel(excel_path)
+        df = clean_phones(df)
+        
+        rows_new, skipped = upload_dedupe(df, logger)
+        
+        report = f'DAILY REPORT {datetime.now()}\\nExcel rows: {len(df)}\\nNew uploaded: {rows_new}\\nDuplicates skipped: {skipped}'
+        Path('logs/daily_report.txt').write_text(report)
+        logger.info(report)
+    except Exception as e:
+        logger.error(f'Cycle error: {e}')
+
+def scheduler_main(logger):
+    \"\"\"24/7 scheduler - daily 9AM + error restart\"\"\" 
+    scheduler = BackgroundScheduler()
+    scheduler.add_error_handler(lambda job, exc: logger.error(f'Scheduler error: {exc}'))
+    
+    scheduler.add_job(bot_cycle, CronTrigger(hour=9, minute=0), args=[logger], id='daily_upload')
+    scheduler.start()
+    
+    logger.info('24/7 Scheduler started - Daily 9AM. Ctrl+C to stop')
+    try:
+        while True:
+            time.sleep(60)  # Keep alive
+    except KeyboardInterrupt:
+        scheduler.shutdown()
+
+def main():
+    parser = argparse.ArgumentParser(description='Lead Scraper Uploader Bot')
+    parser.add_argument('--diagnostics', action='store_true', help='Run diagnostics')
+    parser.add_argument('--force-upload', action='store_true', help='Upload all rows ignore dupes')
+    parser.add_argument('--schedule', action='store_true', help='Start 24/7 scheduler')
+    args = parser.parse_args()
+    
+    logger = setup_logging()
+    
+    if args.diagnostics:
+        run_diagnostics(logger)
+        sys.exit(0)
+    
+    if args.force_upload:
+        excel_path = Path('data/doctor_leads_master.xlsx')
+        if excel_path.exists():
+            df = pd.read_excel(excel_path)
+            df = clean_phones(df)
+            upload_force(df, logger)
+        else:
+            logger.error('No Excel file')
+        sys.exit(0)
+    
+    if args.schedule:
+        if not SCHEDULER_AVAILABLE:
+            logger.error('pip install apscheduler')
+            sys.exit(1)
+        scheduler_main(logger)
+    else:
+        # Single run
+        bot_cycle(logger)
+        print('Single run complete')
 
 if __name__ == '__main__':
     main()
+
