@@ -21,6 +21,7 @@ import logging
 try:
     from apscheduler.schedulers.background import BackgroundScheduler
     from apscheduler.triggers.cron import CronTrigger
+    from apscheduler.events import EVENT_JOB_ERROR
     SCHEDULER_AVAILABLE = True
 except ImportError:
     SCHEDULER_AVAILABLE = False
@@ -257,7 +258,7 @@ def bot_cycle(logger):
 def scheduler_main(logger):
     """24/7 scheduler - daily 9AM + error restart"""
     scheduler = BackgroundScheduler()
-    scheduler.add_error_handler(lambda job, exc: logger.error(f'Scheduler error: {exc}'))
+    scheduler.add_listener(lambda event: logger.error(f'Scheduler error in {event.job_id}: {event.exception}') if event.exception else None, EVENT_JOB_ERROR)
     
     scheduler.add_job(bot_cycle, CronTrigger(hour=9, minute=0), args=[logger], id='daily_upload')
     scheduler.start()

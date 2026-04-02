@@ -46,6 +46,7 @@ SCHEDULER_AVAILABLE = False
 try:
     from apscheduler.schedulers.background import BackgroundScheduler
     from apscheduler.triggers.cron import CronTrigger
+    from apscheduler.events import EVENT_JOB_ERROR
     SCHEDULER_AVAILABLE = True
 except ImportError:
     pass
@@ -281,7 +282,7 @@ def scheduler_main(logger: logging.Logger):
     """24/7: Daily 9AM + error recovery"""
     scheduler = BackgroundScheduler()
     scheduler.add_job(bot_cycle, CronTrigger(hour=9), args=[logger], id='daily')
-    scheduler.add_error_handler(lambda job, exc: logger.error(f'Scheduler error: {exc}'))
+    scheduler.add_listener(lambda event: logger.error(f'Scheduler error in {event.job_id}: {event.exception}') if event.exception else None, EVENT_JOB_ERROR)
     scheduler.start()
     logger.info('🚀 24/7 Scheduler started (Daily 9AM). Ctrl+C to stop.')
     try:
