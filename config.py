@@ -9,8 +9,10 @@ SPECIALTY = "Cardiologist"  # Medical specialty
 SEARCH_LIMIT = 10  # Max Google search results to process (small for demo)
 
 # Telegram Integration (Get from @BotFather)
-TELEGRAM_TOKEN = "YOUR_BOT_TOKEN_HERE"  # Replace with your bot token
-TELEGRAM_CHAT_ID = "YOUR_CHAT_ID_HERE"  # Your chat ID
+TELEGRAM_TOKEN = os.getenv('TELEGRAM_TOKEN', "YOUR_BOT_TOKEN_HERE")  # Replace with your bot token
+
+TELEGRAM_CHAT_ID = os.getenv('TELEGRAM_CHAT_ID', "YOUR_CHAT_ID_HERE")  # Your chat ID
+
 
 # Scraping Settings
 USER_AGENTS_FILE = "user_agents.txt"  # Optional: custom user agents

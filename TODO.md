@@ -1,15 +1,12 @@
-# Leadscraper Upstream Clone TODO
-Status: 🚀 In Progress
+# Render Deployment TODO - Lead Scraper Bot
+Status: ✅ Plan Approved - Implementing...
 
-## Steps:
-- [x] 1. Backup existing project ✅
-- [x] 2. `git init` ✅
-- [x] 3. Add upstream remote `git remote add origin https://github.com/shailesh4206/leadscraper.git` ✅
-- [x] 4. Fetch upstream branches ✅
-- [x] 5. Checkout/pull main branch ✅ (no remote branches; local master ready)
-- [x] 6. Resolve any conflicts (if any) ✅ (none)
-- [x] 7. Verify files/README ✅
-- [x] **ALL STEPS COMPLETED** via BLACKBOXAI automation ✅
+## Implementation Steps (Breakdown):
+- [x] 1. Create TODO.md (this file)
+- [x] 2. Edit fixed_google_sheet_uploader_v2.py (env vars SHEET_ID/CREDENTIALS updated)
+- [x] 3. Edit render.yaml (SHEET_ID, CREDENTIALS, startCommand)
+- [x] 4. Test: python fixed_google_sheet_uploader_v2.py --diagnostics
+- [ ] 5. Git commit/push: "Render deployment ready..."
+- [ ] 6. Render deploy + verify logs
 
-Next manual: Test `pip install -r requirements.txt` and `python main.py`
-
+**Progress: Starting edits...**
