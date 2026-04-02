@@ -1,0 +1,13 @@
+services:
+  - type: worker
+    name: leadscraper-bot
+    runtime: python
+    envVars:
+      - key: GOOGLE_CREDENTIALS_JSON
+        sync: false  # Paste your service account JSON string here in Render dashboard
+      - key: GOOGLE_SHEET_ID
+        value: "1Ue3UXj-HYfJMSipy_oJ3wsUEKX9FuJsvZw50b2GrV1o"
+      - key: PYTHONUNBUFFERED
+        value: "1"
+    buildCommand: pip install -r requirements.txt
+    startCommand: python fixed_google_sheet_uploader_v2.py

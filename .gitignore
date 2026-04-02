@@ -1,0 +1,11 @@
+credentials.json
+data/*.xlsx
+data/*.csv
+__pycache__/
+*.log
+.DS_Store
+.env
+node_modules/
+.vscode/
+.idea/
+
