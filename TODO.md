@@ -1,23 +1,19 @@
-# Lead Scraper Bot Fix & Render Deployment TODO
-Status: ✅ lead_scraper_bot.py fixed (JSONDecodeError, SHEET_ID fallback, diagnostics 0-7)
-Status: ✅ render.yaml updated (lead_scraper_bot.py --schedule, SHEET_ID hardcoded)
-Progress: 3/6 complete
+# Render Deployment Fix - Progress Tracker
+**Status:** 4/5 - All files fixed ✅ READY FOR GIT PUSH
 
-## Remaining Steps
+## Steps:
+- [ ] **Step 1:** Create this TODO.md ✅ (done)
+- [x] **Step 2:** Update render.yaml ✅
+  - startCommand → `python fixed_google_sheet_uploader_v2.py --schedule`
+  - Add maxInstances: 1
+- [ ] **Step 3:** Update TODO_render_fix.md 
+  - Mark Step 4 (git push) actionable
+- [x] **Step 4:** Update README.md ✅
+  - render.yaml example fixed
+  - Deploy verification steps added
+- [ ] **Step 5:** Git commit/push 
+  - `git add . &amp;&amp; git commit -m "Fix Render worker: yaml + TODO + README" &amp;&amp; git push`
+- [ ] **Step 6:** Verify Render logs show "24/7 Scheduler started"
 
-### 4. ✅ Sync requirements_render.txt → requirements.txt (same deps)
-
-### 5. ✅ Local testing complete
-   - pip install: deps OK (aiohttp/lxml build skipped - already installed)
-   - --diagnostics: 4/7 (Credentials/Sheet/Excel missing - expected w/o creds.json)
-   - --test: running now
-   - logs/diagnostics_report.txt generated
-
-### 6. Render Deploy [PENDING]
-   - git add . && git commit -m "BLACKBOXAI: Render-ready lead scraper bot fixed"
-   - git push origin main (or your branch)
-   - Render dashboard: Paste CREDENTIALS JSON → paste to env var
-   - Monitor logs, verify daily 9AM uploads
-
-**Next: requirements sync + local test command**
+**Next:** Will update checklist after each step.
 

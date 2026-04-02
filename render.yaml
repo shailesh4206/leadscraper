@@ -11,5 +11,6 @@ services:
       - key: PYTHONUNBUFFERED
         value: "1"
     buildCommand: pip install -r requirements.txt
-    startCommand: python lead_scraper_bot.py --schedule
+    startCommand: python fixed_google_sheet_uploader_v2.py --schedule
+    maxInstances: 1
 

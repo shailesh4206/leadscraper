@@ -112,22 +112,14 @@ MAX_RETRIES = 3        # Failed request retries
 
 **Background Worker (24/7 Scheduler)**
 
-Uses `render.yaml` (pre-configured):
-```
-services:
-  - type: worker
-    name: healthcare-crm-bot  
-    runtime: python
-    buildCommand: pip install -r requirements.txt
-    startCommand: python healthcare_crm_automation.py --schedule
-```
+Uses `render.yaml` (updated for v2):\n```\nservices:\n  - type: worker\n    name: leadscraper-bot\n    runtime: python\n    envVars:\n      - key: CREDENTIALS\n        sync: false\n      - key: SHEET_ID\n        value: \"your_sheet_id\"\n      - key: PYTHONUNBUFFERED\n        value: \"1\"\n    buildCommand: pip install -r requirements.txt\n    startCommand: python fixed_google_sheet_uploader_v2.py --schedule\n    maxInstances: 1\n```
 
 ### Deploy Steps:
 1. ✅ Git commit/push (data/ files optional, recreated)
 2. Render.com → New → Background Worker
 3. Connect GitHub repo → Auto-deploy  
 4. (Optional) Env Var: `GOOGLE_SHEET_ID`
-5. ✅ Monitor Render logs: "⏰ Daily scheduler started"
+5. **Verify deployment** (check Render logs):\n   - ✅ \"24/7 Scheduler started - Daily 9AM\"\n   - ✅ No \"No open ports detected\" errors\n   - ✅ `logs/bot_health.log` + `logs/daily_report.txt` updating\n   - Test: Dashboard → Manual Deploy → Logs
 
 **Runs daily 9AM uploads + full logging + auto-restart**
 
