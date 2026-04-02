@@ -6,10 +6,10 @@ services:
       - key: CREDENTIALS
         sync: false  # Paste your service account JSON string here in Render dashboard
       - key: SHEET_ID
-        fromEnv: SHEET_ID  # Set in Render dashboard
+        value: "1Ue3UXj-HYfJMSipy_oJ3wsUEKX9FuJsvZw50b2GrV1o"  # Hardcoded for safety
 
       - key: PYTHONUNBUFFERED
         value: "1"
     buildCommand: pip install -r requirements.txt
-    startCommand: python fixed_google_sheet_uploader_v2.py --schedule
+    startCommand: python lead_scraper_bot.py --schedule
 
